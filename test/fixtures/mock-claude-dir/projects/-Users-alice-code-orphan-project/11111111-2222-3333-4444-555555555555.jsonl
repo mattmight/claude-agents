@@ -1,0 +1,5 @@
+{"type":"system","message":{"role":"system","content":"System init"},"uuid":"sys-001","timestamp":"2025-02-01T12:00:00.000Z","sessionId":"11111111-2222-3333-4444-555555555555","gitBranch":"","isSidechain":false}
+{"type":"user","message":{"role":"user","content":"Fix the bug"},"uuid":"u-001","timestamp":"2025-02-01T12:00:01.000Z","sessionId":"11111111-2222-3333-4444-555555555555","gitBranch":"","isSidechain":false}
+{"type":"progress","uuid":"p-001","timestamp":"2025-02-01T12:00:02.000Z","sessionId":"11111111-2222-3333-4444-555555555555"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Fixed it."}]},"uuid":"a-001","timestamp":"2025-02-01T12:00:05.000Z","sessionId":"11111111-2222-3333-4444-555555555555","gitBranch":"","isSidechain":false}
+{"type":"user","message":{"role":"user","content":"Thanks"},"uuid":"u-002","timestamp":"2025-02-01T12:01:00.000Z","sessionId":"11111111-2222-3333-4444-555555555555","gitBranch":"","isSidechain":false}

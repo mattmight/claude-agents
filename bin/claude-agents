@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# claude-agents launcher
+# Symlink this from ~/bin/ to make claude-agents available on $PATH:
+#   ln -s /path/to/claude-agents/bin/claude-agents ~/bin/claude-agents
+
+set -euo pipefail
+
+# Resolve the real path of this script (following symlinks)
+resolve_link() {
+  local target="$1"
+  while [ -L "$target" ]; do
+    local dir
+    dir="$(cd -P "$(dirname "$target")" && pwd)"
+    target="$(readlink "$target")"
+    # Handle relative symlinks
+    [[ "$target" != /* ]] && target="$dir/$target"
+  done
+  echo "$target"
+}
+
+REAL_SCRIPT="$(resolve_link "$0")"
+SCRIPT_DIR="$(cd -P "$(dirname "$REAL_SCRIPT")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+# If the local dist/cli.js exists, use it directly (dev/local mode)
+if [ -f "$PROJECT_DIR/dist/cli.js" ]; then
+  exec node "$PROJECT_DIR/dist/cli.js" "$@"
+fi
+
+# Otherwise, fall back to npx
+exec npx --yes claude-agents "$@"

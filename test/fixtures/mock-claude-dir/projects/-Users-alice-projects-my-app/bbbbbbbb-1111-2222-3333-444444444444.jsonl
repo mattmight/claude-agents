@@ -1,0 +1,2 @@
+{"type":"user","message":{"role":"user","content":"Fix the bug in parser.ts"},"uuid":"msg-b01","timestamp":"2025-01-02T10:00:00.000Z","sessionId":"bbbbbbbb-1111-2222-3333-444444444444","gitBranch":"fix/parser-bug","isSidechain":false}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Looking at it now."}]},"uuid":"msg-b02","timestamp":"2025-01-02T10:05:00.000Z","sessionId":"bbbbbbbb-1111-2222-3333-444444444444","gitBranch":"fix/parser-bug"}

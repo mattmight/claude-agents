@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "claude-agents": {
+      "command": "node",
+      "args": ["dist/cli.js", "serve"]
+    }
+  }
+}
