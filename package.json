@@ -9,6 +9,11 @@
     "claude-agents": "dist/cli.js"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mattmight/claude-agents.git"
+  },
+  "homepage": "https://github.com/mattmight/claude-agents",
   "keywords": [
     "claude",
     "claude-code",

@@ -25,7 +25,7 @@ npx claude-agents status
 Or symlink from a local clone (no global install, no npx overhead):
 
 ```bash
-git clone <repo-url> && cd claude-agents
+git clone git@github.com:mattmight/claude-agents.git && cd claude-agents
 npm install && npm run build
 ln -s "$(pwd)/bin/claude-agents" ~/bin/claude-agents
 ```
