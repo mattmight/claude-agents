@@ -43,7 +43,7 @@ describe("MCP Server Integration", () => {
       expect(names).toContain("inspect_session");
       expect(names).toContain("get_status");
       expect(names).toContain("find_session");
-      expect(result.tools).toHaveLength(5);
+      expect(result.tools).toHaveLength(7);
     });
 
     it("each tool has a description", async () => {

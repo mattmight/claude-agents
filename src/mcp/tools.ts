@@ -7,6 +7,7 @@ import { checkAllSessionsLiveness } from "../core/liveness.js";
 import { resolveSessionById } from "../commands/inspect.js";
 import { buildStatusData } from "../commands/status.js";
 import { parseDuration } from "../utils/duration.js";
+import { deleteSession, bulkDeleteSessions } from "../core/session-deleter.js";
 
 const STATUS_PRIORITY: Record<string, number> = {
   active: 0,
@@ -343,6 +344,159 @@ export function registerTools(
       return {
         content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
       };
+    },
+  );
+
+  // delete_session
+  server.registerTool(
+    "delete_session",
+    {
+      description:
+        "Delete a single session and all its associated files (JSONL, subagents, registry, etc.).",
+      annotations: { destructiveHint: true },
+      inputSchema: {
+        session_id: z
+          .string()
+          .describe("Session UUID or unique prefix"),
+        force: z
+          .boolean()
+          .optional()
+          .describe("Skip active-session safety check"),
+        dry_run: z
+          .boolean()
+          .optional()
+          .describe("Show what would be deleted without acting"),
+      },
+    },
+    async ({ session_id, force, dry_run }) => {
+      try {
+        if (dry_run) {
+          const { planSessionDeletion } = await import("../core/session-deleter.js");
+          const plan = await planSessionDeletion(session_id, {
+            ...scannerOptions,
+            force,
+          });
+          return {
+            content: [
+              { type: "text" as const, text: JSON.stringify(plan, null, 2) },
+            ],
+          };
+        }
+
+        const result = await deleteSession(session_id, {
+          ...scannerOptions,
+          force,
+        });
+        return {
+          content: [
+            { type: "text" as const, text: JSON.stringify(result, null, 2) },
+          ],
+        };
+      } catch (err: unknown) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: err instanceof Error ? err.message : String(err),
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // bulk_delete_sessions
+  server.registerTool(
+    "bulk_delete_sessions",
+    {
+      description:
+        "Delete multiple sessions matching filters. Use for cleanup of old/stopped sessions.",
+      annotations: { destructiveHint: true },
+      inputSchema: {
+        all_stopped: z
+          .boolean()
+          .optional()
+          .describe("Delete all sessions with status stopped"),
+        before: z
+          .string()
+          .optional()
+          .describe("Only sessions older than this duration (e.g., '30d')"),
+        project_path: z
+          .string()
+          .optional()
+          .describe("Only sessions in this project (exact or substring match)"),
+        force: z
+          .boolean()
+          .optional()
+          .describe("Skip safety checks"),
+        dry_run: z
+          .boolean()
+          .optional()
+          .describe("Show what would be deleted without acting"),
+        prune_history: z
+          .boolean()
+          .optional()
+          .describe("Also remove entries from history.jsonl"),
+      },
+    },
+    async ({ all_stopped, before, project_path, force, dry_run, prune_history }) => {
+      try {
+        const bulkOpts = {
+          ...scannerOptions,
+          force,
+          allStopped: all_stopped,
+          before,
+          projectPath: project_path,
+          pruneHistory: prune_history,
+        };
+
+        if (dry_run) {
+          const { selectSessionsForBulkDelete } = await import(
+            "../core/session-deleter.js"
+          );
+          const sessions = await selectSessionsForBulkDelete(bulkOpts);
+          const data = {
+            count: sessions.length,
+            sessions: sessions.map((s) => ({
+              id: s.id,
+              project_path: s.projectPath,
+              status: s.status ?? "unknown",
+              updated_at: s.updatedAt.toISOString(),
+            })),
+            prune_history: prune_history ?? false,
+          };
+          return {
+            content: [
+              { type: "text" as const, text: JSON.stringify(data, null, 2) },
+            ],
+          };
+        }
+
+        const result = await bulkDeleteSessions(bulkOpts);
+        const data = {
+          total_sessions_deleted: result.totalSessionsDeleted,
+          total_files_deleted: result.totalFilesDeleted,
+          total_bytes_freed: result.totalBytesFreed,
+          total_errors: result.totalErrors,
+          pruned_history_entries: result.prunedHistoryEntries,
+        };
+        return {
+          content: [
+            { type: "text" as const, text: JSON.stringify(data, null, 2) },
+          ],
+        };
+      } catch (err: unknown) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: err instanceof Error ? err.message : String(err),
+            },
+          ],
+          isError: true,
+        };
+      }
     },
   );
 }

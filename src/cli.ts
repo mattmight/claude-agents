@@ -7,6 +7,7 @@ import { runSessionsCommand } from "./commands/sessions.js";
 import { runInspectCommand } from "./commands/inspect.js";
 import { runStatusCommand, runStatusWatch } from "./commands/status.js";
 import { runServeCommand } from "./commands/serve.js";
+import { runDeleteCommand } from "./commands/delete.js";
 import { runWatchCommand } from "./commands/watch.js";
 import {
   generateBashCompletions,
@@ -133,6 +134,48 @@ program
           json: globalOpts.json,
           verbose: globalOpts.verbose,
           claudeDir,
+        },
+        colors,
+      );
+      process.stdout.write(output + "\n");
+    } catch (err: unknown) {
+      process.stderr.write(
+        (err instanceof Error ? err.message : String(err)) + "\n",
+      );
+      process.exit(1);
+    }
+  });
+
+program
+  .command("delete")
+  .description("Delete session(s) and all associated files")
+  .argument("[session-id]", "session UUID or unique prefix (omit for bulk ops)")
+  .option("--dry-run", "show what would be deleted without acting")
+  .option("--force", "skip active-session safety check and confirmation")
+  .option("--all-stopped", "delete all sessions with status stopped")
+  .option("--before <duration>", "only sessions older than duration (e.g., 30d)")
+  .option("--project <path>", "only sessions in this project")
+  .option("--prune-history", "also remove entries from history.jsonl")
+  .action(async (sessionId: string | undefined, cmdOpts: Record<string, unknown>) => {
+    const globalOpts = program.opts<{
+      claudeDir?: string;
+      json?: boolean;
+      color: boolean;
+    }>();
+    const claudeDir = resolveClaudeDir(globalOpts.claudeDir);
+    const colors = createColors(globalOpts.color && isColorEnabled());
+    try {
+      const output = await runDeleteCommand(
+        sessionId,
+        {
+          dryRun: cmdOpts.dryRun as boolean | undefined,
+          force: cmdOpts.force as boolean | undefined,
+          json: globalOpts.json,
+          claudeDir,
+          allStopped: cmdOpts.allStopped as boolean | undefined,
+          before: cmdOpts.before as string | undefined,
+          project: cmdOpts.project as string | undefined,
+          pruneHistory: cmdOpts.pruneHistory as boolean | undefined,
         },
         colors,
       );

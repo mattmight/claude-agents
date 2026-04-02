@@ -182,3 +182,36 @@ export interface LivenessOptions extends ScannerOptions {
   /** Seconds within which a JSONL mtime is considered "recent" (default 30) */
   recencyWindowSeconds?: number;
 }
+
+/**
+ * A file or directory that would be (or was) deleted.
+ */
+export interface DeletionTarget {
+  path: string;
+  type: "file" | "directory";
+  /** Size in bytes (0 for directories or if stat fails) */
+  sizeBytes: number;
+}
+
+/**
+ * Plan for what a session deletion would do (dry-run output).
+ */
+export interface DeletionPlan {
+  sessionId: string;
+  targets: DeletionTarget[];
+  totalBytes: number;
+  updatesSessionsIndex: boolean;
+  /** Warning if session appears active */
+  warning: string | null;
+}
+
+/**
+ * Result of a completed session deletion.
+ */
+export interface DeletionResult {
+  sessionId: string;
+  deleted: DeletionTarget[];
+  errors: { path: string; error: string }[];
+  updatedSessionsIndex: boolean;
+  totalBytesFreed: number;
+}

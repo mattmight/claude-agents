@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-`claude-agents` is a CLI tool and MCP server for inspecting Claude Code sessions across all projects on a machine. It reads from `~/.claude/` (never writes) to provide project discovery, session enumeration, liveness detection, and search.
+`claude-agents` is a CLI tool and MCP server for inspecting and managing Claude Code sessions across all projects on a machine. It reads from `~/.claude/` to provide project discovery, session enumeration, liveness detection, and search. The `delete` command is the only operation that writes to `~/.claude/`.
 
 ## Build & Test
 
@@ -18,8 +18,8 @@ CI runs on GitHub Actions (Ubuntu + macOS, Node 18/20/22).
 
 ## Architecture
 
-- **`src/core/`** — Pure data modules (scanner, path-resolver, session-enumerator, liveness, history-parser, watcher). No I/O formatting.
-- **`src/commands/`** — CLI command handlers (projects, sessions, inspect, status, serve, watch, completions). Orchestrate core modules and delegate to formatters.
+- **`src/core/`** — Pure data modules (scanner, path-resolver, session-enumerator, liveness, history-parser, watcher, session-deleter). No I/O formatting.
+- **`src/commands/`** — CLI command handlers (projects, sessions, inspect, delete, status, serve, watch, completions). Orchestrate core modules and delegate to formatters.
 - **`src/formatters/`** — Pure functions returning strings (table, json, csv, inspect, status). No stdout writes.
 - **`src/mcp/`** — MCP server (server.ts), tool registration (tools.ts), resource registration (resources.ts), prompt templates (prompts.ts).
 - **`src/utils/`** — Small utilities (colors, duration parsing).
@@ -36,7 +36,7 @@ CI runs on GitHub Actions (Ubuntu + macOS, Node 18/20/22).
 - **Fixture-based testing** — Tests use `test/fixtures/mock-claude-dir/` with realistic Claude Code directory structures. MCP integration tests use `InMemoryTransport.createLinkedPair()`. Edge case fixtures at `test/fixtures/empty-claude-dir/` and `test/fixtures/corrupted-claude-dir/`.
 - **`process.kill` mocking** — Liveness tests mock `process.kill` via `vi.spyOn` since fixture PIDs aren't real processes.
 - **No chalk dependency** — Colors use a thin ANSI wrapper in `src/utils/colors.ts`.
-- **Read-only** — The tool never modifies any Claude Code state files.
+- **Read-only** — The tool never modifies any Claude Code state files, except for the `delete` command which removes session artifacts.
 
 ## Test Structure
 
@@ -51,6 +51,7 @@ Tests mirror the source layout:
 - `projects` — List projects (`--active`, `--sort`)
 - `sessions` — List sessions (`--active`, `--latest`, `--limit`, `--sort`, `--since`, `--format`, `[project-path]`)
 - `inspect <session-id>` — Session detail (UUID or prefix)
+- `delete [session-id]` — Delete session(s) and all artifacts (`--dry-run`, `--force`, `--all-stopped`, `--before`, `--project`, `--prune-history`)
 - `status` — Dashboard (`--watch`, `--interval`)
 - `serve` — MCP server (`--sse`, `--port`)
 - `watch` — Streaming NDJSON events (`--interval`)

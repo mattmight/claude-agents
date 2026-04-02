@@ -6,7 +6,7 @@ CLI and MCP server for inspecting and managing Claude Code sessions across all p
 
 ## Status
 
-**Milestone 9 complete** — Full CLI with watch mode, CSV output, exit codes, shell completions, symlinkable launcher + fully-featured MCP server.
+**Milestone 11 complete** — Session deletion with bulk operations, history pruning, and MCP tools.
 
 See [PLAN.md](./PLAN.md) for the full design document and roadmap.
 
@@ -47,6 +47,16 @@ claude-agents sessions --since 7d --sort status
 # Inspect a session (full UUID or prefix)
 claude-agents inspect a1b2c3d4
 claude-agents inspect a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+# Delete a session (removes JSONL, subagents, registry, etc.)
+claude-agents delete a1b2c3d4 --dry-run   # preview what would be deleted
+claude-agents delete a1b2c3d4              # actually delete
+claude-agents delete a1b2c3d4 --force      # delete even if active
+
+# Bulk delete old stopped sessions
+claude-agents delete --all-stopped --before 30d --dry-run
+claude-agents delete --all-stopped --before 30d --force
+claude-agents delete --project /path --prune-history --force
 
 # Status dashboard
 claude-agents status
@@ -119,6 +129,8 @@ Connect MCP clients to `http://localhost:3100/mcp`.
 | `inspect_session` | Get session detail by UUID or prefix |
 | `get_status` | Aggregate dashboard summary |
 | `find_session` | Search sessions by summary, branch, or first prompt text |
+| `delete_session` | Delete a session and all its files (`session_id`, `force`, `dry_run`) |
+| `bulk_delete_sessions` | Bulk delete sessions (`all_stopped`, `before`, `project_path`, `force`, `dry_run`, `prune_history`) |
 
 ### MCP Resources
 
@@ -207,6 +219,7 @@ Entry point using Commander.js. Parses global options (`--json`, `--no-color`, `
 - **`src/commands/projects.ts`** — `claude-agents projects` with `--active` and `--sort` (path, last_active, session_count)
 - **`src/commands/sessions.ts`** — `claude-agents sessions` with `--active`, `--latest`, `--limit`, `--sort`, `--since`, `--format` (table/json/csv), and optional `[project-path]` filter
 - **`src/commands/inspect.ts`** — `claude-agents inspect <session-id>` with full UUID or unique prefix resolution
+- **`src/commands/delete.ts`** — `claude-agents delete <session-id>` with `--dry-run`, `--force`, removes all session artifacts
 - **`src/commands/status.ts`** — `claude-agents status` summary dashboard with `--watch` and `--interval`
 - **`src/commands/serve.ts`** — `claude-agents serve` starts the MCP server (stdio or HTTP+SSE)
 - **`src/commands/watch.ts`** — `claude-agents watch` streaming NDJSON events for session changes
@@ -251,6 +264,9 @@ Entry point using Commander.js. Parses global options (`--json`, `--no-color`, `
   - `checkSessionLiveness()` — checks a single session against the process registry and JSONL recency
   - `checkAllSessionsLiveness()` — batch liveness check, reads registry once
 - **`src/core/watcher.ts`** — Filesystem watcher for `~/.claude/projects/` with debouncing (100ms default). Used by MCP subscriptions and CLI `--watch` mode.
+- **`src/core/session-deleter.ts`** — Session deletion with multi-file cleanup:
+  - `planSessionDeletion()` — dry-run that lists targets without modifying anything
+  - `deleteSession()` — removes JSONL, subdirectory, PID registry, session-env, file-history, debug log, and updates sessions-index.json
 
 ### Key Types
 

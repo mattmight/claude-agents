@@ -19,6 +19,13 @@ export {
   checkSessionLiveness,
   checkAllSessionsLiveness,
 } from "./core/liveness.js";
+export {
+  planSessionDeletion,
+  deleteSession,
+  bulkDeleteSessions,
+  selectSessionsForBulkDelete,
+  pruneHistoryFile,
+} from "./core/session-deleter.js";
 export type {
   ProjectEntry,
   ScannerOptions,
@@ -33,4 +40,7 @@ export type {
   SessionRegistryEntry,
   LivenessResult,
   LivenessOptions,
+  DeletionTarget,
+  DeletionPlan,
+  DeletionResult,
 } from "./types.js";

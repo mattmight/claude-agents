@@ -640,6 +640,98 @@ claude-agents/
 
 ---
 
+### Milestone 10 — Session Deletion (Core + CLI)
+
+**Goal:** Add the ability to delete individual sessions, removing all associated files from `~/.claude/`. This is the first write operation — all prior milestones were read-only.
+
+**Background — Session data locations:**
+
+A session's data is spread across up to 8 filesystem locations:
+
+| # | Location | Description |
+|---|----------|-------------|
+| 1 | `~/.claude/projects/{encoded}/{sessionId}.jsonl` | Main transcript file |
+| 2 | `~/.claude/projects/{encoded}/{sessionId}/` | Session directory (subagents, tool-results) |
+| 3 | `~/.claude/projects/{encoded}/sessions-index.json` | Entry in the project's `entries` array |
+| 4 | `~/.claude/sessions/{PID}.json` | PID registry file (if session was/is active) |
+| 5 | `~/.claude/session-env/{sessionId}/` | Per-session environment data |
+| 6 | `~/.claude/file-history/{sessionId}/` | File version snapshots from edits |
+| 7 | `~/.claude/debug/{sessionId}.txt` | Debug log (if debug was enabled) |
+| 8 | `~/.claude/history.jsonl` | Global history lines referencing this session |
+
+**Deliverables:**
+- [x] `core/session-deleter.ts` — Core deletion module:
+  - `deleteSession(sessionId, options)` → `DeletionResult` — performs the multi-file cleanup
+  - `planSessionDeletion(sessionId, options)` → `DeletionPlan` — dry-run: lists what would be deleted without acting
+  - Resolves which project directory a session belongs to (reuses `enumerateAllSessions`)
+  - Removes: JSONL transcript, session subdirectory (subagents + tool-results), PID registry entry, session-env dir, file-history dir, debug log
+  - Updates `sessions-index.json`: removes the matching entry, preserves the rest. If `entries` becomes empty, removes the file.
+  - Does **not** modify `history.jsonl` by default (append-only file; opt-in cleanup deferred to M11)
+  - Returns a `DeletionResult` with counts of files/dirs removed and any errors encountered
+- [x] Safety checks:
+  - Refuse to delete sessions with status `active` (confirmed live PID) unless `--force` is passed
+  - Sessions with status `likely_active` get a warning but proceed (PID not confirmed)
+  - The `--force` flag bypasses all safety checks
+- [x] `commands/delete.ts` — CLI command handler:
+  - `claude-agents delete <session-id>` — delete a single session by UUID or prefix
+  - `--dry-run` — show what would be deleted without acting
+  - `--force` — skip active-session safety check
+  - `--json` — output deletion result as JSON
+  - Reuses `resolveSessionById()` from `commands/inspect.ts` for prefix resolution
+- [x] Wire `delete` command in `cli.ts`
+- [x] Types: `DeletionPlan`, `DeletionResult`, `DeletionTarget` in `types.ts`
+- [x] Tests (7 tests using temporary directories):
+  - Dry-run lists targets without modifying files
+  - Warns for active sessions in dry-run
+  - Deletes all session artifacts (JSONL, subdirectory, PID registry, session-env, debug log)
+  - sessions-index.json correctly updated (entry removed, other entries preserved)
+  - Refuses to delete active sessions without --force
+  - Deletes active sessions with --force
+  - Handles partially missing files gracefully
+- [x] Updated `CLAUDE.md` — note that `delete` is the one command that writes to `~/.claude/`
+
+**Acceptance criteria:**
+- `claude-agents delete a1b2c3d4 --dry-run` shows all files that would be removed
+- `claude-agents delete a1b2c3d4` removes the session's JSONL, subdirectory, sessions-index entry, PID registry, and auxiliary dirs
+- `claude-agents delete a1b2c3d4` on an active session exits with error unless `--force` is used
+- `sessions-index.json` retains other sessions' entries after deletion
+- `claude-agents inspect a1b2c3d4` returns "not found" after deletion
+
+**Estimated effort:** 2d.
+
+---
+
+### Milestone 11 — Session Deletion (MCP + Bulk Operations)
+
+**Goal:** Expose deletion via MCP and add bulk cleanup operations for maintenance workflows.
+
+**Deliverables:**
+- [x] `delete_session` MCP tool — accepts `session_id` (full or prefix), `force`, `dry_run` parameters. Returns structured deletion result or plan. Reuses `core/session-deleter.ts`.
+- [x] Bulk CLI operations on `delete` command:
+  - `--all-stopped` — delete all sessions with status `stopped`
+  - `--before <duration>` — only delete sessions last updated before the given duration (e.g., `--before 30d`). Combinable with `--all-stopped`.
+  - `--project <path>` — delete all sessions for a specific project (exact or substring match)
+  - All bulk operations respect `--dry-run` and `--force`
+- [x] `--prune-history` flag — when passed with a delete operation, also removes matching entries from `~/.claude/history.jsonl` (rewrites the file, filtering out lines with the deleted session IDs). Opt-in because it modifies a shared append-only file.
+- [x] `bulk_delete_sessions` MCP tool — accepts `all_stopped`, `before`, `project_path`, `force`, `dry_run`, `prune_history`. Returns deletion summary or dry-run list.
+- [x] Tests (13 new tests):
+  - MCP tool integration tests (delete_session dry-run, delete, error on nonexistent; bulk_delete_sessions dry-run; tool count)
+  - Bulk selection with `--all-stopped`, `--before`, `--project`
+  - Bulk deletion removes files and returns summary
+  - `--prune-history` correctly rewrites history.jsonl (entries removed, others preserved)
+  - Missing history file handled gracefully
+
+**Acceptance criteria:**
+- MCP client can call `delete_session` and receive a structured result
+- `claude-agents delete --all-stopped --before 30d --dry-run` lists all old stopped sessions
+- `claude-agents delete --all-stopped --before 30d` removes them (with confirmation)
+- `claude-agents delete --project /path --prune-history` cleans up all traces
+- Bulk operations show a summary: "Deleted 12 sessions (45 files, 23.4 MB freed)"
+
+**Estimated effort:** 2d.
+
+---
+
 ## Milestone Summary
 
 | # | Milestone | Depends On | Effort | Cumulative |
@@ -654,6 +746,8 @@ claude-agents/
 | 7 | Polish, Packaging, Documentation | M4, M6 | 2d | 13.5d |
 | 8 | Orchestrator Integration (stretch) | M7 | 2d | 15.5d |
 | 9 | Symlinkable Launcher Script | M7 | 0.5d | 16d |
+| 10 | Session Deletion (Core + CLI) | M4 | 2d | 18d |
+| 11 | Session Deletion (MCP + Bulk) | M5, M10 | 2d | 20d |
 
 Milestones 0–1 and 0–2 can be developed in parallel. Milestones 3–4 (CLI) and 5–6 (MCP) can also be developed in parallel since both depend on M1+M2 and share no code with each other — they are independent adapters over the same core.
 
